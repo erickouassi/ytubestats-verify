@@ -111,6 +111,16 @@
         console.error(err);
       }
     })();
+
+    const params = new URLSearchParams(window.location.search);
+const key = params.get("licenseKey");
+
+// Only rewrite the URL if a key was provided
+if (key) {
+  const cleanUrl = window.location.origin + "/ytubestats-verify/";
+  history.replaceState({}, "", cleanUrl);
+}
+
   </script>
 
 </body>
