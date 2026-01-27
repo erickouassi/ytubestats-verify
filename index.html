@@ -111,17 +111,24 @@
         console.error(err);
       }
     })();
-
-    const params = new URLSearchParams(window.location.search);
-const key = params.get("licenseKey");
-
-// Only rewrite the URL if a key was provided
-if (key) {
-  const cleanUrl = window.location.origin + "/ytubestats-verify/";
-  history.replaceState({}, "", cleanUrl);
-}
-
   </script>
+  <script>
+  // Read the key from the URL
+  const params = new URLSearchParams(window.location.search);
+  const key = params.get("licenseKey");
+
+  // Hide the key from the URL bar
+  if (key) {
+    const cleanUrl = window.location.origin + "/ytubestats-verify/";
+    history.replaceState({}, "", cleanUrl);
+  }
+
+  // Now you can use the key normally
+  console.log("License key received:", key);
+
+  // Continue with your verification logic...
+</script>
+
 
 </body>
 </html>
