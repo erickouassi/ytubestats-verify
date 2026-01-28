@@ -36,97 +36,124 @@
   <div id="result"></div>
 
   <script>
-    (async function () {
-      const params = new URLSearchParams(window.location.search);
-      const licenseKey = params.get("licenseKey");
+(async function () {
 
-      const resultEl = document.getElementById("result");
-      const loadingEl = document.getElementById("loading");
+  /* ---------------------------------------------------------
+     STEP 1 — Read key from URL or session
+  --------------------------------------------------------- */
 
-      if (!licenseKey) {
-        loadingEl.textContent = "No license key provided.";
-        return;
-      }
-
-      try {
-        const response = await fetch("https://gist.githubusercontent.com/erickouassi/e6bdb0c49657bd73659c46b602573331/raw/2cbb6504ba4206ccdda4612dfcf8f572699f5e18/ytubestats.data.json", {
-          cache: "no-store"
-        });
-        const data = await response.json();
-
-        const license = data.licenses.find(item => item.key === licenseKey);
-
-        if (!license) {
-          loadingEl.remove();
-          resultEl.innerHTML = `
-            <div class="status invalid">INVALID LICENSE KEY</div>
-            <p>The key <code>${licenseKey}</code> does not exist in our system.</p>
-          `;
-          return;
-        }
-
-        // Determine status
-        let statusHTML = "";
-        const today = new Date();
-
-        if (license.expires === "never") {
-          statusHTML = `<div class="status valid">VALID — Lifetime License</div>`;
-        } else {
-          const expires = new Date(license.expires);
-
-          if (today <= expires) {
-            statusHTML = `<div class="status valid">VALID — Active License</div>`;
-          } else {
-            const graceEnd = new Date(expires);
-            graceEnd.setDate(graceEnd.getDate() + license.graceDays);
-
-            if (today <= graceEnd) {
-              statusHTML = `<div class="status grace">EXPIRED — In Grace Period</div>`;
-            } else {
-              statusHTML = `<div class="status expired">EXPIRED — No Longer Valid</div>`;
-            }
-          }
-        }
-
-        loadingEl.remove();
-
-        resultEl.innerHTML = `
-          ${statusHTML}
-
-          <h2>License Details</h2>
-          <p><strong>License Key:</strong> <code>${license.key}</code></p>
-          <p><strong>Type:</strong> ${license.type}</p>
-          <p><strong>Activated:</strong> ${license.activated}</p>
-          <p><strong>Expires:</strong> ${license.expires}</p>
-          <p><strong>Grace Period:</strong> ${license.graceDays} days</p>
-          <p><strong>Max Domains:</strong> ${license.maxDomains}</p>
-
-          <h3>Approved Domains</h3>
-          <ul>
-            ${license.domains.map(d => `<li>${d}</li>`).join("")}
-          </ul>
-        `;
-      } catch (err) {
-        loadingEl.textContent = "Error loading license data.";
-        console.error(err);
-      }
-    })();
-  </script>
-  <script>
-  // Read the key from the URL
   const params = new URLSearchParams(window.location.search);
-  const key = params.get("licenseKey");
+  const urlKey = params.get("licenseKey");
 
-  // Hide the key from the URL bar
-  if (key) {
+  // If key exists in URL, store it for this session only
+  if (urlKey) {
+    sessionStorage.setItem("licenseKey", urlKey);
+
+    // Clean the URL (remove ?licenseKey=...)
     const cleanUrl = window.location.origin + "/ytubestats-verify/";
     history.replaceState({}, "", cleanUrl);
   }
 
-  // Now you can use the key normally
-  console.log("License key received:", key);
+  // Load key from sessionStorage (works on refresh)
+  const licenseKey = sessionStorage.getItem("licenseKey");
 
-  // Continue with your verification logic...
+  console.log("License key being used:", licenseKey);
+
+  // If no key at all, block access
+  const loadingEl = document.getElementById("loading");
+  const resultEl = document.getElementById("result");
+
+  if (!licenseKey) {
+    loadingEl.textContent = "No license key provided.";
+    return;
+  }
+
+
+  /* ---------------------------------------------------------
+     STEP 2 — Fetch license database
+  --------------------------------------------------------- */
+
+  try {
+    const response = await fetch(
+      "https://gist.githubusercontent.com/erickouassi/e6bdb0c49657bd73659c46b602573331/raw/2cbb6504ba4206ccdda4612dfcf8f572699f5e18/ytubestats.data.json",
+      { cache: "no-store" }
+    );
+
+    const data = await response.json();
+
+    const license = data.licenses.find(item => item.key === licenseKey);
+
+
+    /* ---------------------------------------------------------
+       STEP 3 — Handle invalid license
+    --------------------------------------------------------- */
+
+    if (!license) {
+      loadingEl.remove();
+      resultEl.innerHTML = `
+        <div class="status invalid">INVALID LICENSE KEY</div>
+        <p>The key <code>${licenseKey}</code> does not exist in our system.</p>
+      `;
+      return;
+    }
+
+
+    /* ---------------------------------------------------------
+       STEP 4 — Determine license status
+    --------------------------------------------------------- */
+
+    let statusHTML = "";
+    const today = new Date();
+
+    if (license.expires === "never") {
+      statusHTML = `<div class="status valid">VALID — Lifetime License</div>`;
+    } else {
+      const expires = new Date(license.expires);
+
+      if (today <= expires) {
+        statusHTML = `<div class="status valid">VALID — Active License</div>`;
+      } else {
+        const graceEnd = new Date(expires);
+        graceEnd.setDate(graceEnd.getDate() + license.graceDays);
+
+        if (today <= graceEnd) {
+          statusHTML = `<div class="status grace">EXPIRED — In Grace Period</div>`;
+        } else {
+          statusHTML = `<div class="status expired">EXPIRED — No Longer Valid</div>`;
+        }
+      }
+    }
+
+
+    /* ---------------------------------------------------------
+       STEP 5 — Render results
+    --------------------------------------------------------- */
+
+    loadingEl.remove();
+
+    resultEl.innerHTML = `
+      ${statusHTML}
+
+      <h2>License Details</h2>
+      <p><strong>License Key:</strong> <code>${license.key}</code></p>
+      <p><strong>Type:</strong> ${license.type}</p>
+      <p><strong>Activated:</strong> ${license.activated}</p>
+      <p><strong>Expires:</strong> ${license.expires}</p>
+      <p><strong>Grace Period:</strong> ${license.graceDays} days</p>
+      <p><strong>Max Domains:</strong> ${license.maxDomains}</p>
+
+      <h3>Approved Domains</h3>
+      <ul>
+        ${license.domains.map(d => `<li>${d}</li>`).join("")}
+      </ul>
+    `;
+
+  } catch (err) {
+    loadingEl.textContent = "Error loading license data.";
+    console.error(err);
+  }
+
+})();
 </script>
 
 
